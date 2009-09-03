@@ -2480,6 +2480,30 @@ function _biblio_export($format="tagged", $nid = null, $version = 7) {
   }
 }
 
+/**
+ * Adapt date string to the necessary format
+ * @param string $input the date string to adapt
+ * @param string $to datefmt to return
+ *        if null, then it returns the number
+ * @return a SINGLE date (the first)
+ */
+function _biblio_date($input,$to=null) {
+  $my_date = $input;
+  ///strtotime defaults to assuming mm/dd/yy,
+  /// so we need to pre-empt it for dd/mm/yyyy (legacy)
+  $legacy_fmt = preg_match('|((\d+)/)?(\d+)/(\d+)|',$input,$matches);
+  if ($legacy_fmt) {
+    $my_date = $matches[4].'-'.$matches[3];
+    $my_date .= ($matches[1] ? '-'.$matches[2] : '');
+  } 
+  $my_date = strtotime($my_date);
+  if (!$my_date) {
+    ///on strtotime error, fail back to the original
+    return $input; 
+  }
+  return ($to ? date($to,$my_date): $my_date);
+}
+
 function _bibtex_export($results) {
     if (!is_array($results))
     {
@@ -3757,8 +3781,11 @@ function biblio_contextObject($node) {
     $co["rft.isbn"] = $node->biblio_isbn ;
 
   // date (year)
-  if (!empty($node->biblio_year ))
+  if (!empty($node->biblio_date )) {
+    $co["rft.date"] = _biblio_date($node->biblio_date,'Y-m-d');
+  } elseif (!empty($node->biblio_year )) {
     $co["rft.date"] = $node->biblio_year ;
+  }
 
   // volume
   if (!empty($node->biblio_volume ))
