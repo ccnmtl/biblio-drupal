@@ -3719,12 +3719,16 @@ function biblio_coins($node) {
 }
 
 function biblio_rft_val_fmt($node) {
-  switch ($node->biblio_type) {
-  case 100:
-  case 101: return "book";
+  switch (@$node->biblio_type) {
+  case 100: //book
+  case 101: //book chapter
+    return "book";
   // 'dissertation' is compatible with the 1.0 spec, but not the 0.1 spec
   case 108: return "dissertation";
-  case 102:
+  case 102: //journal article
+  case 105: //newspaper article
+  case 106: //magazine article
+  case "Journal": //??legacy
     return "journal";
   // 'dc' (dublin core) is compatible with the 1.0 spec, but not the 0.1 spec.
   // We default to this, as it is the most generic type.
@@ -3739,39 +3743,37 @@ function biblio_contextObject($node) {
   // Adapted for biblio: Ron Jerome
   global $base_url;
  // $openurl_base = variable_get('biblio_baseopenurl','');
-  $rft_val_fmt = biblio_rft_val_fmt($node);
 
   $co = array();
 
   // rfr_id
   $co["rfr_id"] = "info:sid/" . ereg_replace("http://", "", $base_url);
 
+  // title, j(ournal)title, b(ook)title, a(rticle)title
   // genre (type)
-  if (isset($node->biblio_type )) {
-    if ($node->biblio_type  == 102 )
-      $co["rft.genre"] = "article";
-    elseif ($node->biblio_type  == 101 )
-      $co["rft.genre"] = "bookitem";
-    elseif ($node->biblio_type  == 100 )
-      $co["rft.genre"] = "book";
-    elseif ($node->biblio_type  == "Journal")
-      $co["rft.genre"] = "journal";
-  }
-
-  // atitle, btitle, title (title, publication)
-  if (($node->biblio_type  == 102) || ($node->biblio_type  == 101)) {
-    if (!empty($node->title ))
-      $co["rft.atitle"] = $node->title ;
+  switch(biblio_rft_val_fmt($node)) {
+  case "journal":
+    if (!empty($node->title )) {
+      $co["rft.atitle"] = $node->title;
+    }
     if (!empty($node->biblio_secondary_title )) {
       $co["rft.title"] = $node->biblio_secondary_title ;
-      if ($node->biblio_type  == 101)
-        $co["rft.btitle"] = $node->biblio_secondary_title ;
+      $co["rft.jtitle"] = $node->biblio_secondary_title ;
     }
+    $co["rft.genre"] = "article";
+    if ($node->biblio_type ==="Journal") $co["rft.genre"] = "journal";
+    break;
+  case "book":
+    if (!empty($node->title )) {
+      $co["rft.title"] = $node->title;
+      $co["rft.btitle"] = $node->title;
+    }
+    $co["rft.genre"] = "book";
+    if (@$node->biblio_type ==101) $co["rft.genre"] = "bookitem";
+    break;
+  default:
+    if (!empty($node->title )) $co["rft.title"] = $node->title;
   }
-  elseif (!empty($node->title ))
-    $co["rft.title"] = $node->title ;
-  if (($node->biblio_type  == 100) && (!empty($node->title )))
-    $co["rft.btitle"] = $node->title ;
 
   // stitle (abbrev_journal)
   if (!empty($node->biblio_short_title ))
