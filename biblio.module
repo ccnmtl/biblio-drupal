@@ -1856,7 +1856,11 @@ function biblio_view_inline(&$node) {
 function biblio_view(&$node, $teaser = false, $page = false) {
   theme('biblio_add_css');
   if ( strlen(trim($node->body)) ) $node = node_prepare($node, $teaser);
-
+  if (empty($node->biblio_coins)) {
+    $full_node = node_load($node->nid);
+    biblio_coins_generate($full_node);
+    $node->biblio_coins = $full_node->biblio_coins;
+  }
   $style = variable_get('biblio_style', 'classic');
   $base =  variable_get('biblio_base', 'biblio');
   switch (variable_get('biblio_node_layout', '0')) {
@@ -3696,17 +3700,7 @@ function biblio_coins($node) {
   // Adapted for biblio: Ron Jerome
   // fmt_info (type)
   $fmt = "info:ofi/fmt:kev:mtx:";
-  // 'dissertation' is compatible with the 1.0 spec, but not the 0.1 spec
-  if ($node->biblio_type == 108)
-    $fmt .= "dissertation";
-  elseif ( $node->biblio_type  == 102)
-    $fmt .= "journal";
-  elseif ($node->biblio_type  == 100 || $node->biblio_type  == 101 )
-    $fmt .= "book";
-  // 'dc' (dublin core) is compatible with the 1.0 spec, but not the 0.1 spec.
-  // We default to this, as it is the most generic type.
-  else
-    $fmt .= "dc";
+  $fmt .= biblio_rft_val_fmt($node);
 
   $co = biblio_contextObject($node);
 
@@ -3724,6 +3718,20 @@ function biblio_coins($node) {
   return $coinsSpan;
 }
 
+function biblio_rft_val_fmt($node) {
+  switch ($node->biblio_type) {
+  case 100:
+  case 101: return "book";
+  // 'dissertation' is compatible with the 1.0 spec, but not the 0.1 spec
+  case 108: return "dissertation";
+  case 102:
+    return "journal";
+  // 'dc' (dublin core) is compatible with the 1.0 spec, but not the 0.1 spec.
+  // We default to this, as it is the most generic type.
+  default: return "dc";
+  }
+}
+
 function biblio_contextObject($node) {
   // Copyright:          Matthias Steffens <mailto:refbase@extracts.de> and the file's
   //                     original author.
@@ -3731,6 +3739,7 @@ function biblio_contextObject($node) {
   // Adapted for biblio: Ron Jerome
   global $base_url;
  // $openurl_base = variable_get('biblio_baseopenurl','');
+  $rft_val_fmt = biblio_rft_val_fmt($node);
 
   $co = array();
 
